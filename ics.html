@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Kalendereintrag</title>
+</head>
+<body>
+  <p>⏳ Kalendereintrag wird vorbereitet...</p>
+  <script>
+    function parseParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return {
+        summary: urlParams.get("summary") || "Erinnerung",
+        date: urlParams.get("date"),   // Format: YYYY-MM-DD
+        time: urlParams.get("time")    // Format: HH:MM
+      };
+    }
+
+    function generateICS({ summary, date, time }) {
+      if (!date || !time) {
+        alert("Datum oder Uhrzeit fehlen.");
+        return "";
+      }
+
+      const start = new Date(`${date}T${time}:00`);
+      const end = new Date(start.getTime() + 30 * 60000); // +30 Min
+
+      const formatDate = d =>
+        d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+
+      return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//VergissNIX//Kalender
+BEGIN:VEVENT
+UID:${Date.now()}@vergissnix
+DTSTAMP:${formatDate(new Date())}
+DTSTART:${formatDate(start)}
+DTEND:${formatDate(end)}
+SUMMARY:${summary}
+DESCRIPTION:Erinnerung automatisch erstellt von Vergiss NIX
+END:VEVENT
+END:VCALENDAR`;
+    }
+
+    function downloadICS(content) {
+      const blob = new Blob([content], { type: "text/calendar" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "erinnerung.ics";
+      link.click();
+    }
+
+    const data = parseParams();
+    const ics = generateICS(data);
+    if (ics) downloadICS(ics);
+  </script>
+</body>
+</html>
