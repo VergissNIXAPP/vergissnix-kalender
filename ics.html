@@ -1,58 +1,112 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Kalendereintrag</title>
+  <meta charset="UTF-8" />
+  <title>Kalendereintrag herunterladen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #003087;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      flex-direction: column;
+      text-align: center;
+    }
+    button {
+      background-color: #00bfff;
+      border: none;
+      border-radius: 25px;
+      padding: 15px 30px;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #009ad9;
+    }
+    p {
+      max-width: 400px;
+      font-size: 18px;
+      margin: 0 20px;
+    }
+  </style>
 </head>
 <body>
-  <p>⏳ Kalendereintrag wird vorbereitet...</p>
-  <script>
-    function parseParams() {
-      const urlParams = new URLSearchParams(window.location.search);
-      return {
-        summary: urlParams.get("summary") || "Erinnerung",
-        date: urlParams.get("date"),   // Format: YYYY-MM-DD
-        time: urlParams.get("time")    // Format: HH:MM
-      };
-    }
 
-    function generateICS({ summary, date, time }) {
-      if (!date || !time) {
-        alert("Datum oder Uhrzeit fehlen.");
-        return "";
-      }
+<h1>Kalendereintrag erstellen</h1>
+<p id="info">Lade Daten…</p>
+<button id="downloadBtn" disabled>Kalendereintrag herunterladen</button>
 
-      const start = new Date(`${date}T${time}:00`);
-      const end = new Date(start.getTime() + 30 * 60000); // +30 Min
+<script>
+  // URL-Parameter auslesen
+  function getParam(param) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
+  }
 
-      const formatDate = d =>
-        d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  // ICS-Format generieren
+  function generateICS({ text, start, end }) {
+    return [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Vergiss NIX//DE",
+      "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT",
+      "DTSTART:" + start,
+      "DTEND:" + end,
+      "SUMMARY:" + text.replace(/\n/g, "\\n"),
+      "DESCRIPTION:" + text.replace(/\n/g, "\\n"),
+      "STATUS:CONFIRMED",
+      "BEGIN:VALARM",
+      "TRIGGER:-PT15M",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Erinnerung",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+  }
 
-      return `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//VergissNIX//Kalender
-BEGIN:VEVENT
-UID:${Date.now()}@vergissnix
-DTSTAMP:${formatDate(new Date())}
-DTSTART:${formatDate(start)}
-DTEND:${formatDate(end)}
-SUMMARY:${summary}
-DESCRIPTION:Erinnerung automatisch erstellt von Vergiss NIX
-END:VEVENT
-END:VCALENDAR`;
-    }
+  const text = getParam("text") || "Kein Titel";
+  const start = getParam("start");
+  const end = getParam("end");
 
-    function downloadICS(content) {
-      const blob = new Blob([content], { type: "text/calendar" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "erinnerung.ics";
-      link.click();
-    }
+  const info = document.getElementById("info");
+  const btn = document.getElementById("downloadBtn");
 
-    const data = parseParams();
-    const ics = generateICS(data);
-    if (ics) downloadICS(ics);
-  </script>
+  if (!start || !end) {
+    info.textContent = "Fehlende oder ungültige Start- oder Endzeit.";
+    btn.disabled = true;
+  } else {
+    info.innerHTML = `
+      Termin: <strong>${text}</strong><br/>
+      Beginn: <strong>${start}</strong><br/>
+      Ende: <strong>${end}</strong>
+    `;
+
+    btn.disabled = false;
+    btn.onclick = () => {
+      const icsContent = generateICS({ text, start, end });
+      const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "termin.ics";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+  }
+</script>
+
 </body>
 </html>
