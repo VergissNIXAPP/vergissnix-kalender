@@ -1,112 +1,77 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <title>Kalendereintrag herunterladen</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: #003087;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      flex-direction: column;
-      text-align: center;
-    }
-    button {
-      background-color: #00bfff;
-      border: none;
-      border-radius: 25px;
-      padding: 15px 30px;
-      color: white;
-      font-size: 18px;
-      cursor: pointer;
-      margin-top: 20px;
-      transition: background-color 0.3s ease;
-    }
-    button:hover {
-      background-color: #009ad9;
-    }
-    p {
-      max-width: 400px;
-      font-size: 18px;
-      margin: 0 20px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>Kalender-Eintrag erstellen</title>
 </head>
 <body>
+  <h1>Dein Kalender-Ereignis wird erstellt…</h1>
+  <p id="status">Einen Moment…</p>
 
-<h1>Kalendereintrag erstellen</h1>
-<p id="info">Lade Daten…</p>
-<button id="downloadBtn" disabled>Kalendereintrag herunterladen</button>
+  <script>
+    function pad(n) {
+      return n.toString().padStart(2, '0');
+    }
 
-<script>
-  // URL-Parameter auslesen
-  function getParam(param) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(param);
-  }
+    function generateICS(text, dateStr, timeStr) {
+      const [day, month, year] = dateStr.split('.');
+      const [hour, minute] = timeStr !== "unbekannt" ? timeStr.split(':') : ['08', '00'];
+      const startDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
 
-  // ICS-Format generieren
-  function generateICS({ text, start, end }) {
-    return [
-      "BEGIN:VCALENDAR",
-      "VERSION:2.0",
-      "PRODID:-//Vergiss NIX//DE",
-      "CALSCALE:GREGORIAN",
-      "BEGIN:VEVENT",
-      "DTSTART:" + start,
-      "DTEND:" + end,
-      "SUMMARY:" + text.replace(/\n/g, "\\n"),
-      "DESCRIPTION:" + text.replace(/\n/g, "\\n"),
-      "STATUS:CONFIRMED",
-      "BEGIN:VALARM",
-      "TRIGGER:-PT15M",
-      "ACTION:DISPLAY",
-      "DESCRIPTION:Erinnerung",
-      "END:VALARM",
-      "END:VEVENT",
-      "END:VCALENDAR"
-    ].join("\r\n");
-  }
+      // Dauer: 1 Stunde
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
-  const text = getParam("text") || "Kein Titel";
-  const start = getParam("start");
-  const end = getParam("end");
+      function formatICSDate(date) {
+        return date.getUTCFullYear()
+          + pad(date.getUTCMonth() + 1)
+          + pad(date.getUTCDate())
+          + 'T'
+          + pad(date.getUTCHours())
+          + pad(date.getUTCMinutes())
+          + '00Z';
+      }
 
-  const info = document.getElementById("info");
-  const btn = document.getElementById("downloadBtn");
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `SUMMARY:${text}`,
+        `DESCRIPTION:${text}`,
+        `DTSTART:${formatICSDate(startDate)}`,
+        `DTEND:${formatICSDate(endDate)}`,
+        `DTSTAMP:${formatICSDate(new Date())}`,
+        `UID:${Date.now()}@vergissnix`,
+        'STATUS:CONFIRMED',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
 
-  if (!start || !end) {
-    info.textContent = "Fehlende oder ungültige Start- oder Endzeit.";
-    btn.disabled = true;
-  } else {
-    info.innerHTML = `
-      Termin: <strong>${text}</strong><br/>
-      Beginn: <strong>${start}</strong><br/>
-      Ende: <strong>${end}</strong>
-    `;
+      return icsContent;
+    }
 
-    btn.disabled = false;
-    btn.onclick = () => {
-      const icsContent = generateICS({ text, start, end });
-      const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    function downloadICS(content, filename = "erinnerung.ics") {
+      const blob = new Blob([content], { type: 'text/calendar' });
       const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
-      a.download = "termin.ics";
-      document.body.appendChild(a);
+      a.download = filename;
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    };
-  }
-</script>
+    }
 
+    const params = new URLSearchParams(window.location.search);
+    const text = params.get("text") || "Erinnerung";
+    const date = params.get("date");
+    const time = params.get("time") || "08:00";
+
+    if (date) {
+      const icsFile = generateICS(text, date, time);
+      downloadICS(icsFile);
+      document.getElementById("status").textContent = "Kalendereintrag wurde heruntergeladen.";
+    } else {
+      document.getElementById("status").textContent = "Keine gültigen Daten übergeben.";
+    }
+  </script>
 </body>
 </html>
